@@ -1,0 +1,9 @@
+{
+	"id": "sfb-open-in-new-tab",
+	"name": "Open in New Tab",
+	"version": "1.0.0",
+	"minAppVersion": "1.0.0",
+	"description": "Forces files to open in new tabs instead of replacing the current tab. Covers all opening methods including Quick Switcher, command palette, bookmarks, search, backlinks, and graph view.",
+	"author": "saltyfireball",
+	"isDesktopOnly": false
+}

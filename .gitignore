@@ -1,0 +1,8 @@
+# Build output
+main.js
+
+# npm
+node_modules
+
+# Journal (development notes, not for distribution)
+JOURNAL.md
