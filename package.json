@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-sfb-open-in-new-tab",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Forces files to open in new tabs instead of replacing the current tab in Obsidian.",
 	"main": "main.js",
 	"type": "module",
