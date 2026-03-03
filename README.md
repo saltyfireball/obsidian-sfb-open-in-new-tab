@@ -13,7 +13,7 @@ An Obsidian plugin that forces files to open in new tabs instead of replacing th
 - **Universal coverage**: Works with Quick Switcher, command palette, bookmarks, search results, backlinks, graph view, sidebar clicks, and markdown links
 - **Focus existing tab**: If a file is already open in another tab, focuses that tab instead of opening a duplicate
 - **Same-file navigation**: Clicking heading/block links within the same file stays in the current tab
-- **Modifier key support**: Ctrl/Cmd+click, Shift+click, and Alt+click behave as expected (split, window, etc.)
+- **Non-invasive**: Only changes the default "reuse current tab" behavior; all other Obsidian navigation (splits, popout windows) passes through unchanged
 - **Toggleable**: Enable/disable via settings without restarting Obsidian
 
 ## How It Works
