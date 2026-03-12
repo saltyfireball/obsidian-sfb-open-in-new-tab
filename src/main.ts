@@ -32,12 +32,14 @@ export default class OpenInNewTabPlugin extends Plugin {
 		| null = null;
 	private originalOpenLinkText: Workspace["openLinkText"] | null = null;
 	private bypassGetLeafPatch = false;
+	private forcedNewTab = false;
 
 	override onload(): void {
 		void this.loadSettings();
 		this.addSettingTab(new OpenInNewTabSettingTab(this.app, this));
 		this.patchGetLeaf();
 		this.patchOpenLinkText();
+		this.registerFileOpenHandler();
 	}
 
 	override onunload(): void {
@@ -70,6 +72,7 @@ export default class OpenInNewTabPlugin extends Plugin {
 
 			// Only intercept getLeaf(false) or getLeaf() -- the "reuse current tab" calls
 			if (newLeaf === false || newLeaf === undefined) {
+				this.forcedNewTab = true;
 				return this.originalGetLeaf("tab");
 			}
 
@@ -198,11 +201,51 @@ export default class OpenInNewTabPlugin extends Plugin {
 		};
 	}
 
-	private findLeafWithFile(path: string): WorkspaceLeaf | null {
+	private registerFileOpenHandler(): void {
+		this.registerEvent(
+			this.app.workspace.on("file-open", (file) => {
+				if (
+					!file ||
+					!this.settings.enabled ||
+					!this.settings.focusExistingTab ||
+					!this.forcedNewTab
+				) {
+					this.forcedNewTab = false;
+					return;
+				}
+				this.forcedNewTab = false;
+
+				// Find the leaf that just opened this file (the active one)
+				const activeLeaf =
+					this.app.workspace.getActiveViewOfType(FileView)
+						?.leaf ?? null;
+				if (!activeLeaf) return;
+
+				// Look for another leaf with the same file
+				const existingLeaf = this.findLeafWithFile(
+					file.path,
+					activeLeaf
+				);
+				if (existingLeaf) {
+					// Focus the existing tab and close the duplicate
+					this.app.workspace.setActiveLeaf(existingLeaf, {
+						focus: true,
+					});
+					activeLeaf.detach();
+				}
+			})
+		);
+	}
+
+	private findLeafWithFile(
+		path: string,
+		exclude?: WorkspaceLeaf | null
+	): WorkspaceLeaf | null {
 		let found: WorkspaceLeaf | null = null;
 		this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
 			if (
 				found === null &&
+				leaf !== exclude &&
 				leaf.view instanceof FileView &&
 				leaf.view.file !== null &&
 				leaf.view.file.path === path
