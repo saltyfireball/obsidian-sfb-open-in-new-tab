@@ -52,7 +52,8 @@ export default class OpenInNewTabPlugin extends Plugin {
 				direction?: unknown
 		  ) => WorkspaceLeaf)
 		| null = null;
-	private originalOpenLinkText: Workspace["openLinkText"] | null = null;
+	private originalOpenLinkText: Workspace["openLinkText"] | null =
+		null;
 	private bypassGetLeafPatch = false;
 	private forcedNewTab = false;
 
@@ -77,7 +78,8 @@ export default class OpenInNewTabPlugin extends Plugin {
 			this.originalGetLeaf = null;
 		}
 		if (this.originalOpenLinkText) {
-			this.app.workspace.openLinkText = this.originalOpenLinkText;
+			this.app.workspace.openLinkText =
+				this.originalOpenLinkText;
 			this.originalOpenLinkText = null;
 		}
 		delete window.openInNewTabAPI;
@@ -85,16 +87,10 @@ export default class OpenInNewTabPlugin extends Plugin {
 
 	private registerGlobalAPI(): void {
 		window.openInNewTabAPI = {
-			isSplitPreviewActive: () => this.settings.splitPreviewMode,
+			isSplitPreviewActive: () =>
+				this.settings.splitPreviewMode,
 			toggleSplitPreview: () => {
-				this.settings.splitPreviewMode =
-					!this.settings.splitPreviewMode;
-				void this.saveSettings();
-				if (this.settings.splitPreviewMode) {
-					this.ensureSplitPreview();
-				} else {
-					this.closeSplitPreview();
-				}
+				this.toggleSplitPreview();
 			},
 		};
 	}
@@ -104,19 +100,30 @@ export default class OpenInNewTabPlugin extends Plugin {
 			id: "toggle-split-preview",
 			name: "Toggle split preview mode",
 			callback: () => {
-				this.settings.splitPreviewMode =
-					!this.settings.splitPreviewMode;
-				void this.saveSettings();
-				if (this.settings.splitPreviewMode) {
-					this.ensureSplitPreview();
-				} else {
-					this.closeSplitPreview();
-				}
+				this.toggleSplitPreview();
 			},
 		});
 	}
 
+	toggleSplitPreview(): void {
+		this.settings.splitPreviewMode =
+			!this.settings.splitPreviewMode;
+		void this.saveSettings();
+		if (this.settings.splitPreviewMode) {
+			this.ensureSplitPreview();
+		} else {
+			this.closeSplitPreview();
+		}
+	}
+
 	// --- Split Preview ---
+
+	private isPreviewLeafValid(): boolean {
+		return (
+			this.previewLeaf !== null &&
+			this.previewLeaf.view instanceof FileView
+		);
+	}
 
 	private ensureSplitPreview(): void {
 		const activeView =
@@ -124,37 +131,43 @@ export default class OpenInNewTabPlugin extends Plugin {
 		if (!activeView?.file) return;
 
 		// Set the edit pane to the configured mode
-		this.setLeafMode(activeView.leaf, this.getEditModeState());
+		this.setLeafMode(
+			activeView.leaf,
+			this.getEditModeState()
+		);
 
 		// Check if preview leaf already exists and is valid
-		if (
-			this.previewLeaf &&
-			this.previewLeaf.view instanceof FileView
-		) {
-			// Sync it to the current file
+		if (this.isPreviewLeafValid()) {
 			void this.syncPreviewLeaf(activeView.file);
 			return;
 		}
 
-		// Create a new split for preview
+		this.createPreviewSplit(activeView.leaf, activeView.file);
+	}
+
+	private createPreviewSplit(
+		editLeaf: WorkspaceLeaf,
+		file: TFile
+	): void {
 		const direction: SplitDirection =
 			this.settings.splitDirection;
 		this.bypassGetLeafPatch = true;
 		const newLeaf = this.app.workspace.createLeafBySplit(
-			activeView.leaf,
+			editLeaf,
 			direction
 		);
 		this.bypassGetLeafPatch = false;
 		this.previewLeaf = newLeaf;
 
-		// Open the same file in preview mode
+		this.syncingLeaf = true;
 		void newLeaf
-			.openFile(activeView.file, {
+			.openFile(file, {
 				state: { mode: "preview" },
 			})
 			.then(() => {
+				this.syncingLeaf = false;
 				// Focus back to the edit pane
-				this.app.workspace.setActiveLeaf(activeView.leaf, {
+				this.app.workspace.setActiveLeaf(editLeaf, {
 					focus: true,
 				});
 			});
@@ -168,24 +181,24 @@ export default class OpenInNewTabPlugin extends Plugin {
 	}
 
 	private syncPreviewLeaf(file: TFile): Promise<void> {
-		if (!this.previewLeaf) return Promise.resolve();
-
-		// Check if preview leaf is still attached
-		if (!this.previewLeaf.view) {
+		if (!this.isPreviewLeafValid()) {
 			this.previewLeaf = null;
 			return Promise.resolve();
 		}
 
 		// If preview already shows this file, skip
+		const previewFile = (
+			this.previewLeaf as WorkspaceLeaf
+		).view;
 		if (
-			this.previewLeaf.view instanceof FileView &&
-			this.previewLeaf.view.file?.path === file.path
+			previewFile instanceof FileView &&
+			previewFile.file?.path === file.path
 		) {
 			return Promise.resolve();
 		}
 
 		this.syncingLeaf = true;
-		return this.previewLeaf
+		return (this.previewLeaf as WorkspaceLeaf)
 			.openFile(file, {
 				state: { mode: "preview" },
 			})
@@ -210,12 +223,16 @@ export default class OpenInNewTabPlugin extends Plugin {
 					// If the preview leaf was closed externally, clear the ref
 					if (
 						this.previewLeaf &&
-						!this.previewLeaf.view
+						!(
+							this.previewLeaf.view instanceof
+							FileView
+						)
 					) {
 						this.previewLeaf = null;
 					}
 
-					if (!(leaf.view instanceof FileView)) return;
+					if (!(leaf.view instanceof FileView))
+						return;
 					const file = leaf.view.file;
 					if (!file) return;
 
@@ -225,23 +242,23 @@ export default class OpenInNewTabPlugin extends Plugin {
 						return;
 					}
 
-					// User focused an edit leaf -- ensure preview split exists and sync
-					if (
-						leaf.view instanceof MarkdownView
-					) {
-						if (!this.previewLeaf || !this.previewLeaf.view) {
-							// Preview leaf was closed, recreate it
-							const direction: SplitDirection =
-								this.settings.splitDirection;
-							this.bypassGetLeafPatch = true;
-							this.previewLeaf =
-								this.app.workspace.createLeafBySplit(
-									leaf,
-									direction
-								);
-							this.bypassGetLeafPatch = false;
+					// User focused an edit leaf -- ensure preview exists and sync
+					if (leaf.view instanceof MarkdownView) {
+						// Set edit pane to configured mode
+						this.setLeafMode(
+							leaf,
+							this.getEditModeState()
+						);
+
+						if (!this.isPreviewLeafValid()) {
+							// Preview leaf gone, recreate it
+							this.createPreviewSplit(
+								leaf,
+								file
+							);
+						} else {
+							void this.syncPreviewLeaf(file);
 						}
-						void this.syncPreviewLeaf(file);
 					}
 				}
 			)
@@ -249,15 +266,14 @@ export default class OpenInNewTabPlugin extends Plugin {
 	}
 
 	private syncEditPaneToFile(file: TFile): void {
-		// Find a markdown leaf that's NOT the preview leaf
+		// Find a markdown leaf that is NOT the preview leaf
 		let editLeaf: WorkspaceLeaf | null = null;
 		this.app.workspace.iterateAllLeaves(
 			(leaf: WorkspaceLeaf) => {
 				if (
 					editLeaf === null &&
 					leaf !== this.previewLeaf &&
-					leaf.view instanceof MarkdownView &&
-					leaf.view.file !== null
+					leaf.view instanceof MarkdownView
 				) {
 					editLeaf = leaf;
 				}
@@ -356,7 +372,9 @@ export default class OpenInNewTabPlugin extends Plugin {
 
 	private patchOpenLinkText(): void {
 		this.originalOpenLinkText =
-			this.app.workspace.openLinkText.bind(this.app.workspace);
+			this.app.workspace.openLinkText.bind(
+				this.app.workspace
+			);
 
 		this.app.workspace.openLinkText = (
 			linktext: string,
@@ -412,7 +430,6 @@ export default class OpenInNewTabPlugin extends Plugin {
 					activeFile &&
 					targetFile.path === activeFile.path
 				) {
-					// Same file with heading -- stay in current tab
 					this.bypassGetLeafPatch = true;
 					const result = this.originalOpenLinkText(
 						linktext,
@@ -435,15 +452,15 @@ export default class OpenInNewTabPlugin extends Plugin {
 						sourcePath
 					);
 				if (targetFile) {
-					const existingLeaf = this.findLeafWithFile(
-						targetFile.path
-					);
+					const existingLeaf =
+						this.findLeafWithFile(
+							targetFile.path
+						);
 					if (existingLeaf) {
 						this.app.workspace.setActiveLeaf(
 							existingLeaf,
 							{ focus: true }
 						);
-						// If there's a subpath, still navigate to the heading/block
 						if (hasSubpath) {
 							this.bypassGetLeafPatch = true;
 							const result =
@@ -464,7 +481,6 @@ export default class OpenInNewTabPlugin extends Plugin {
 				}
 			}
 
-			// Default: let getLeaf patch handle new tab behavior
 			return this.originalOpenLinkText(
 				linktext,
 				sourcePath,
@@ -490,27 +506,26 @@ export default class OpenInNewTabPlugin extends Plugin {
 				}
 				this.forcedNewTab = false;
 
+				// When split preview is active, let the active-leaf-change
+				// handler manage everything -- don't detach leaves here
+				if (this.settings.splitPreviewMode) return;
+
 				// Find the leaf that just opened this file (the active one)
 				const activeLeaf =
-					this.app.workspace.getActiveViewOfType(FileView)
-						?.leaf ?? null;
+					this.app.workspace.getActiveViewOfType(
+						FileView
+					)?.leaf ?? null;
 				if (!activeLeaf) return;
 
-				// Look for another leaf with the same file (exclude preview leaf)
+				// Look for another leaf with the same file
 				const existingLeaf = this.findLeafWithFile(
 					file.path,
 					activeLeaf
 				);
-				if (
-					existingLeaf &&
-					existingLeaf !== this.previewLeaf
-				) {
-					// Focus the existing tab and close the duplicate
+				if (existingLeaf) {
 					this.app.workspace.setActiveLeaf(
 						existingLeaf,
-						{
-							focus: true,
-						}
+						{ focus: true }
 					);
 					activeLeaf.detach();
 				}
@@ -530,6 +545,7 @@ export default class OpenInNewTabPlugin extends Plugin {
 				if (
 					found === null &&
 					leaf !== exclude &&
+					leaf !== this.previewLeaf &&
 					leaf.view instanceof FileView &&
 					leaf.view.file !== null &&
 					leaf.view.file.path === path

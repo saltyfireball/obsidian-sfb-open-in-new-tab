@@ -13,14 +13,29 @@ An Obsidian plugin that forces files to open in new tabs instead of replacing th
 - **Universal coverage**: Works with Quick Switcher, command palette, bookmarks, search results, backlinks, graph view, sidebar clicks, and markdown links
 - **Focus existing tab**: If a file is already open in another tab, focuses that tab instead of opening a duplicate
 - **Same-file navigation**: Clicking heading/block links within the same file stays in the current tab
+- **Split preview mode**: Automatic side-by-side split with an edit pane and a reading view pane that stay in sync
 - **Non-invasive**: Only changes the default "reuse current tab" behavior; all other Obsidian navigation (splits, popout windows) passes through unchanged
-- **Toggleable**: Enable/disable via settings without restarting Obsidian
+- **Toggleable**: Enable/disable via settings, command palette, or Note Toolbar helpers button
 
 ## How It Works
 
 Monkey-patches `Workspace.getLeaf()` to intercept calls that would reuse the current tab (`getLeaf()` or `getLeaf(false)`) and forces them to open a new tab instead (`getLeaf('tab')`). Calls that already request a new tab, split, or window pass through unchanged.
 
 Also patches `openLinkText()` to handle same-file heading navigation (stays in current tab) and already-open file detection (focuses existing tab).
+
+## Split Preview Mode
+
+When enabled, automatically creates a split view:
+
+- **Left/top pane**: Edit mode (source mode or live preview, configurable)
+- **Right/bottom pane**: Reading view (always)
+- **Synced navigation**: Switching files in either pane updates the other to show the same file
+- **Split direction**: Configurable as right (vertical) or down (horizontal), defaults to right
+
+Toggle via:
+- Settings > Split preview mode > Enable split preview
+- Command palette: "Open in New Tab: Toggle split preview mode"
+- Note Toolbar helpers button (if obsidian-note-toolbar is installed)
 
 ## Install
 
@@ -29,8 +44,18 @@ Also patches `openLinkText()` to handle same-file heading navigation (stays in c
 
 ## Settings
 
-- **Enable Open in New Tab**: Toggle the new-tab behavior on/off
-- **Focus Existing Tab**: When enabled, if the target file is already open in another tab, focus that tab instead of opening a new one
+- **Enable open in new tab**: Toggle the new-tab behavior on/off
+- **Focus existing tab**: Focus an already-open tab instead of opening a duplicate
+- **Enable split preview**: Auto-create a synced edit + reading view split
+- **Split direction**: Right (vertical) or down (horizontal)
+- **Edit pane mode**: Source mode or live preview for the edit pane
+
+## Cross-Plugin API
+
+Exposes `window.openInNewTabAPI` for other plugins:
+
+- `isSplitPreviewActive()`: Returns whether split preview mode is on
+- `toggleSplitPreview()`: Toggles split preview mode on/off
 
 ## License
 
