@@ -513,31 +513,40 @@ export default class OpenInNewTabPlugin extends Plugin {
 					return;
 				}
 
-				// Find the leaf that just opened this file (the active one)
-				const activeLeaf =
-					this.app.workspace.getActiveViewOfType(
-						FileView
-					)?.leaf ?? null;
-				if (
-					!activeLeaf ||
-					!this.forcedLeaves.has(activeLeaf)
-				) {
-					return;
-				}
-				this.forcedLeaves.delete(activeLeaf);
-
-				// Look for another leaf with the same file
-				const existingLeaf = this.findLeafWithFile(
-					file.path,
-					activeLeaf
+				// Collect ALL non-preview leaves showing this file
+				const leaves: WorkspaceLeaf[] = [];
+				this.app.workspace.iterateAllLeaves(
+					(leaf: WorkspaceLeaf) => {
+						if (
+							leaf !== this.previewLeaf &&
+							leaf.view instanceof FileView &&
+							leaf.view.file !== null &&
+							leaf.view.file.path ===
+								file.path
+						) {
+							leaves.push(leaf);
+						}
+					}
 				);
-				if (existingLeaf) {
-					this.app.workspace.setActiveLeaf(
-						existingLeaf,
-						{ focus: true }
-					);
-					activeLeaf.detach();
+
+				if (leaves.length <= 1) return;
+
+				// Keep the leaf NOT created by our patch (the original)
+				const keepLeaf =
+					leaves.find(
+						(l) => !this.forcedLeaves.has(l)
+					) ?? leaves[0];
+
+				for (const leaf of leaves) {
+					if (leaf !== keepLeaf) {
+						this.forcedLeaves.delete(leaf);
+						leaf.detach();
+					}
 				}
+
+				this.app.workspace.setActiveLeaf(keepLeaf, {
+					focus: true,
+				});
 			})
 		);
 	}
