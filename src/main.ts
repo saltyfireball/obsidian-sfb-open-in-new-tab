@@ -506,10 +506,6 @@ export default class OpenInNewTabPlugin extends Plugin {
 				}
 				this.forcedNewTab = false;
 
-				// When split preview is active, let the active-leaf-change
-				// handler manage everything -- don't detach leaves here
-				if (this.settings.splitPreviewMode) return;
-
 				// Find the leaf that just opened this file (the active one)
 				const activeLeaf =
 					this.app.workspace.getActiveViewOfType(
