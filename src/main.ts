@@ -55,7 +55,7 @@ export default class OpenInNewTabPlugin extends Plugin {
 	private originalOpenLinkText: Workspace["openLinkText"] | null =
 		null;
 	private bypassGetLeafPatch = false;
-	private forcedNewTab = false;
+	private forcedLeaves = new WeakSet<WorkspaceLeaf>();
 
 	// Split preview tracking
 	private previewLeaf: WorkspaceLeaf | null = null;
@@ -151,12 +151,10 @@ export default class OpenInNewTabPlugin extends Plugin {
 	): void {
 		const direction: SplitDirection =
 			this.settings.splitDirection;
-		this.bypassGetLeafPatch = true;
 		const newLeaf = this.app.workspace.createLeafBySplit(
 			editLeaf,
 			direction
 		);
-		this.bypassGetLeafPatch = false;
 		this.previewLeaf = newLeaf;
 
 		this.syncingLeaf = true;
@@ -355,13 +353,24 @@ export default class OpenInNewTabPlugin extends Plugin {
 				return this.originalGetLeaf(newLeaf, direction);
 			}
 
-			// Only intercept getLeaf(false) or getLeaf() -- the "reuse current tab" calls
+			// Intercept getLeaf(false) or getLeaf() -- force into new tab
 			if (newLeaf === false || newLeaf === undefined) {
-				this.forcedNewTab = true;
-				return this.originalGetLeaf("tab");
+				const leaf = this.originalGetLeaf("tab");
+				this.forcedLeaves.add(leaf);
+				return leaf;
 			}
 
-			// true, 'tab', 'split', 'window' -- already opening new, pass through
+			// true, 'tab' -- already opening new, but track for dedup
+			if (newLeaf === true || newLeaf === "tab") {
+				const leaf = this.originalGetLeaf(
+					newLeaf,
+					direction
+				);
+				this.forcedLeaves.add(leaf);
+				return leaf;
+			}
+
+			// 'split', 'window' -- pass through without dedup
 			return this.originalGetLeaf(newLeaf, direction);
 		};
 		this.app.workspace.getLeaf =
@@ -499,19 +508,23 @@ export default class OpenInNewTabPlugin extends Plugin {
 					!file ||
 					!this.settings.enabled ||
 					!this.settings.focusExistingTab ||
-					!this.forcedNewTab
+					this.syncingLeaf
 				) {
-					this.forcedNewTab = false;
 					return;
 				}
-				this.forcedNewTab = false;
 
 				// Find the leaf that just opened this file (the active one)
 				const activeLeaf =
 					this.app.workspace.getActiveViewOfType(
 						FileView
 					)?.leaf ?? null;
-				if (!activeLeaf) return;
+				if (
+					!activeLeaf ||
+					!this.forcedLeaves.has(activeLeaf)
+				) {
+					return;
+				}
+				this.forcedLeaves.delete(activeLeaf);
 
 				// Look for another leaf with the same file
 				const existingLeaf = this.findLeafWithFile(
