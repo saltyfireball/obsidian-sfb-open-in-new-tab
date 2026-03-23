@@ -520,7 +520,7 @@ export default class OpenInNewTabPlugin extends Plugin {
 						if (
 							leaf !== this.previewLeaf &&
 							leaf.view instanceof FileView &&
-							leaf.view.file !== null &&
+							leaf.view.file != null &&
 							leaf.view.file.path ===
 								file.path
 						) {
@@ -565,7 +565,7 @@ export default class OpenInNewTabPlugin extends Plugin {
 					leaf !== exclude &&
 					leaf !== this.previewLeaf &&
 					leaf.view instanceof FileView &&
-					leaf.view.file !== null &&
+					leaf.view.file != null &&
 					leaf.view.file.path === path
 				) {
 					found = leaf;
