@@ -537,12 +537,19 @@ export default class OpenInNewTabPlugin extends Plugin {
 						(l) => !this.forcedLeaves.has(l)
 					) ?? leaves[0];
 
-				for (const leaf of leaves) {
-					if (leaf !== keepLeaf) {
+				// Defer detach to avoid conflicts with Obsidian's
+				// internal state during the file-open event cycle
+				const toDetach = leaves.filter(
+					(l) => l !== keepLeaf
+				);
+				window.setTimeout(() => {
+					for (const leaf of toDetach) {
 						this.forcedLeaves.delete(leaf);
-						leaf.detach();
+						if (leaf.view instanceof FileView) {
+							leaf.detach();
+						}
 					}
-				}
+				}, 0);
 
 				this.app.workspace.setActiveLeaf(keepLeaf, {
 					focus: true,
