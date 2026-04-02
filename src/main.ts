@@ -537,19 +537,22 @@ export default class OpenInNewTabPlugin extends Plugin {
 						(l) => !this.forcedLeaves.has(l)
 					) ?? leaves[0];
 
-				// Defer detach to avoid conflicts with Obsidian's
-				// internal state during the file-open event cycle
-				const toDetach = leaves.filter(
-					(l) => l !== keepLeaf
-				);
-				window.setTimeout(() => {
-					for (const leaf of toDetach) {
+				// Close duplicates by clearing their view state
+				// first, which lets Obsidian cleanly unload the
+				// editor before we remove the leaf from the layout
+				for (const leaf of leaves) {
+					if (leaf !== keepLeaf) {
 						this.forcedLeaves.delete(leaf);
-						if (leaf.view instanceof FileView) {
-							leaf.detach();
-						}
+						void leaf
+							.setViewState({
+								type: "empty",
+								state: {},
+							})
+							.then(() => {
+								leaf.detach();
+							});
 					}
-				}, 0);
+				}
 
 				this.app.workspace.setActiveLeaf(keepLeaf, {
 					focus: true,
