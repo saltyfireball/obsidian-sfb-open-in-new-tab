@@ -66,7 +66,6 @@ export default class OpenInNewTabPlugin extends Plugin {
 		this.addSettingTab(new OpenInNewTabSettingTab(this.app, this));
 		this.patchGetLeaf();
 		this.patchOpenLinkText();
-		this.registerFileOpenHandler();
 		this.registerSplitPreviewSync();
 		this.registerGlobalAPI();
 		this.registerCommands();
@@ -357,6 +356,7 @@ export default class OpenInNewTabPlugin extends Plugin {
 			if (newLeaf === false || newLeaf === undefined) {
 				const leaf = this.originalGetLeaf("tab");
 				this.forcedLeaves.add(leaf);
+				this.wrapLeafOpenFile(leaf);
 				return leaf;
 			}
 
@@ -367,6 +367,7 @@ export default class OpenInNewTabPlugin extends Plugin {
 					direction
 				);
 				this.forcedLeaves.add(leaf);
+				this.wrapLeafOpenFile(leaf);
 				return leaf;
 			}
 
@@ -375,6 +376,41 @@ export default class OpenInNewTabPlugin extends Plugin {
 		};
 		this.app.workspace.getLeaf =
 			patchedGetLeaf as Workspace["getLeaf"];
+	}
+
+	// Wrap openFile on a newly created leaf so we can intercept
+	// before any file loads. If the file is already open in another
+	// leaf, we focus that one and discard this empty leaf (safe to
+	// detach because no file/editor state was ever loaded).
+	private wrapLeafOpenFile(leaf: WorkspaceLeaf): void {
+		if (!this.settings.focusExistingTab) return;
+
+		const originalOpenFile = leaf.openFile.bind(leaf);
+		leaf.openFile = (
+			file: TFile,
+			openState?: OpenViewState
+		): Promise<void> => {
+			// Restore original immediately so it only fires once
+			leaf.openFile = originalOpenFile;
+
+			const existing = this.findLeafWithFile(
+				file.path,
+				leaf
+			);
+			if (existing) {
+				// Focus the existing leaf instead
+				this.app.workspace.setActiveLeaf(existing, {
+					focus: true,
+				});
+				// Discard the unused leaf -- no file was loaded
+				// so there is no editor state to tear down
+				this.forcedLeaves.delete(leaf);
+				leaf.detach();
+				return Promise.resolve();
+			}
+
+			return originalOpenFile(file, openState);
+		};
 	}
 
 	// --- openLinkText patch ---
@@ -499,67 +535,8 @@ export default class OpenInNewTabPlugin extends Plugin {
 		};
 	}
 
-	// --- file-open handler for focus-existing-tab ---
-
-	private registerFileOpenHandler(): void {
-		this.registerEvent(
-			this.app.workspace.on("file-open", (file) => {
-				if (
-					!file ||
-					!this.settings.enabled ||
-					!this.settings.focusExistingTab ||
-					this.syncingLeaf
-				) {
-					return;
-				}
-
-				// Collect ALL non-preview leaves showing this file
-				const leaves: WorkspaceLeaf[] = [];
-				this.app.workspace.iterateAllLeaves(
-					(leaf: WorkspaceLeaf) => {
-						if (
-							leaf !== this.previewLeaf &&
-							leaf.view instanceof FileView &&
-							leaf.view.file != null &&
-							leaf.view.file.path ===
-								file.path
-						) {
-							leaves.push(leaf);
-						}
-					}
-				);
-
-				if (leaves.length <= 1) return;
-
-				// Keep the leaf NOT created by our patch (the original)
-				const keepLeaf =
-					leaves.find(
-						(l) => !this.forcedLeaves.has(l)
-					) ?? leaves[0];
-
-				// Close duplicates by clearing their view state
-				// first, which lets Obsidian cleanly unload the
-				// editor before we remove the leaf from the layout
-				for (const leaf of leaves) {
-					if (leaf !== keepLeaf) {
-						this.forcedLeaves.delete(leaf);
-						void leaf
-							.setViewState({
-								type: "empty",
-								state: {},
-							})
-							.then(() => {
-								leaf.detach();
-							});
-					}
-				}
-
-				this.app.workspace.setActiveLeaf(keepLeaf, {
-					focus: true,
-				});
-			})
-		);
-	}
+	// (Dedup is handled in wrapLeafOpenFile, before
+	// any file loads -- no file-open cleanup needed.)
 
 	// --- Helpers ---
 
