@@ -1,0 +1,3 @@
+/* Open in New Tab has no DOM of its own - this file exists so Obsidian's
+   community plugin loader does not log a "styles.css not found" warning
+   when the plugin is installed from the gallery. */
