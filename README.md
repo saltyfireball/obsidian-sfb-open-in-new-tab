@@ -39,35 +39,9 @@ Toggle via:
 
 ## Installation
 
-### Obsidian Community Plugin (pending)
+### Obsidian Community Plugin
 
-This plugin has been submitted for review to the Obsidian community plugin directory. Once approved, you will be able to install it directly from **Settings > Community plugins > Browse** by searching for "Open in New Tab".
-
-### Using BRAT
-
-You can install this plugin right now using the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin:
-
-1. Install BRAT from **Settings > Community plugins > Browse** (search for "BRAT" by TfTHacker)
-2. Open the BRAT settings
-3. Under the **Beta plugins** section, click **Add beta plugin**
-
-   ![BRAT beta plugin list](assets/brat_example_beta_plugin_list.png)
-
-4. In the overlay, enter this plugin's repository: `https://github.com/saltyfireball/obsidian-sfb-open-in-new-tab` (or just `saltyfireball/obsidian-sfb-open-in-new-tab`)
-
-   ![BRAT add beta plugin](assets/brat_example_beta_modal.png)
-
-5. Leave the version set to latest
-
-   ![BRAT beta plugin filled](assets/brat_example_beta_modal_filled.png)
-
-6. Click **Add plugin**
-
-### Manual
-
-1. Download the latest release from the [Releases](https://github.com/saltyfireball/obsidian-sfb-open-in-new-tab/releases) page
-2. Copy `main.js` and `manifest.json` into your vault's `.obsidian/plugins/sfb-open-in-new-tab/` directory
-3. Enable the plugin in **Settings > Community plugins**
+This plugin is available in the official Obsidian community plugin directory. Install it from **Settings > Community plugins > Browse** and search for "Open in New Tab" or "Open in New Tab by saltyfireball".
 
 ## Settings
 
