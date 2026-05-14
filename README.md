@@ -43,6 +43,8 @@ Toggle via:
 
 This plugin is available in the official Obsidian community plugin directory. Install it from **Settings > Community plugins > Browse** and search for "Open in New Tab" or "Open in New Tab by saltyfireball".
 
+Community plugin page: <https://community.obsidian.md/plugins/sfb-open-in-new-tab>
+
 ## Settings
 
 - **Enable open in new tab**: Toggle the new-tab behavior on/off
