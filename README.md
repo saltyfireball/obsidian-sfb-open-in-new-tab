@@ -45,6 +45,10 @@ This plugin is available in the official Obsidian community plugin directory. In
 
 Community plugin page: <https://community.obsidian.md/plugins/sfb-open-in-new-tab>
 
+## More Plugins by saltyfireball
+
+Browse all of my published Obsidian plugins on my profile: <https://community.obsidian.md/users/saltyfireball>
+
 ## Settings
 
 - **Enable open in new tab**: Toggle the new-tab behavior on/off
