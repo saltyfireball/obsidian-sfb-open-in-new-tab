@@ -12,6 +12,7 @@ An Obsidian plugin that forces files to open in new tabs instead of replacing th
 
 - **Universal coverage**: Works with Quick Switcher, command palette, bookmarks, search results, backlinks, graph view, sidebar clicks, and markdown links
 - **Focus existing tab**: If a file is already open in another tab, focuses that tab instead of opening a duplicate
+- **Focus new tab**: New tabs are focused by default, or open in the background so focus stays on the current note
 - **Same-file navigation**: Clicking heading/block links within the same file stays in the current tab
 - **Split preview mode**: Automatic side-by-side split with an edit pane and a reading view pane that stay in sync
 - **Non-invasive**: Only changes the default "reuse current tab" behavior; all other Obsidian navigation (splits, popout windows) passes through unchanged
@@ -53,6 +54,7 @@ Browse all of my published Obsidian plugins on my profile: <https://community.ob
 
 - **Enable open in new tab**: Toggle the new-tab behavior on/off
 - **Focus existing tab**: Focus an already-open tab instead of opening a duplicate
+- **Focus new tab**: Focus the newly opened tab (on by default); disable to open new tabs in the background and keep focus on the current tab
 - **Enable split preview**: Auto-create a synced edit + reading view split
 - **Split direction**: Right (vertical) or down (horizontal)
 - **Edit pane mode**: Source mode or live preview for the edit pane

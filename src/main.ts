@@ -20,6 +20,7 @@ type SplitDir = "vertical" | "horizontal";
 interface OpenInNewTabSettings {
 	enabled: boolean;
 	focusExistingTab: boolean;
+	focusNewTab: boolean;
 	splitPreviewMode: boolean;
 	splitDirection: SplitDir;
 	editPaneMode: EditPaneMode;
@@ -28,6 +29,7 @@ interface OpenInNewTabSettings {
 const DEFAULT_SETTINGS: OpenInNewTabSettings = {
 	enabled: true,
 	focusExistingTab: true,
+	focusNewTab: true,
 	splitPreviewMode: false,
 	splitDirection: "vertical",
 	editPaneMode: "source",
@@ -352,11 +354,16 @@ export default class OpenInNewTabPlugin extends Plugin {
 				return this.originalGetLeaf(newLeaf, direction);
 			}
 
+			// Remember which leaf currently has focus so we can
+			// restore it when a new tab should open in the background.
+			const sourceLeaf =
+				this.app.workspace.getMostRecentLeaf();
+
 			// Intercept getLeaf(false) or getLeaf() -- force into new tab
 			if (newLeaf === false || newLeaf === undefined) {
 				const leaf = this.originalGetLeaf("tab");
 				this.forcedLeaves.add(leaf);
-				this.wrapLeafOpenFile(leaf);
+				this.wrapLeafOpenFile(leaf, sourceLeaf);
 				return leaf;
 			}
 
@@ -367,7 +374,7 @@ export default class OpenInNewTabPlugin extends Plugin {
 					direction
 				);
 				this.forcedLeaves.add(leaf);
-				this.wrapLeafOpenFile(leaf);
+				this.wrapLeafOpenFile(leaf, sourceLeaf);
 				return leaf;
 			}
 
@@ -382,9 +389,12 @@ export default class OpenInNewTabPlugin extends Plugin {
 	// before any file loads. If the file is already open in another
 	// leaf, we focus that one and discard this empty leaf (safe to
 	// detach because no file/editor state was ever loaded).
-	private wrapLeafOpenFile(leaf: WorkspaceLeaf): void {
-		if (!this.settings.focusExistingTab) return;
-
+	// Otherwise, honor the focusNewTab setting: focus the new tab or
+	// leave it in the background with focus restored to sourceLeaf.
+	private wrapLeafOpenFile(
+		leaf: WorkspaceLeaf,
+		sourceLeaf: WorkspaceLeaf | null
+	): void {
 		const originalOpenFile = leaf.openFile.bind(leaf);
 		leaf.openFile = (
 			file: TFile,
@@ -393,23 +403,50 @@ export default class OpenInNewTabPlugin extends Plugin {
 			// Restore original immediately so it only fires once
 			leaf.openFile = originalOpenFile;
 
-			const existing = this.findLeafWithFile(
-				file.path,
-				leaf
-			);
-			if (existing) {
-				// Focus the existing leaf instead
-				this.app.workspace.setActiveLeaf(existing, {
-					focus: true,
-				});
-				// Discard the unused leaf -- no file was loaded
-				// so there is no editor state to tear down
-				this.forcedLeaves.delete(leaf);
-				leaf.detach();
-				return Promise.resolve();
+			if (this.settings.focusExistingTab) {
+				const existing = this.findLeafWithFile(
+					file.path,
+					leaf
+				);
+				if (existing) {
+					// Focus the existing leaf instead
+					this.app.workspace.setActiveLeaf(
+						existing,
+						{ focus: true }
+					);
+					// Discard the unused leaf -- no file was
+					// loaded so there is no editor state to
+					// tear down
+					this.forcedLeaves.delete(leaf);
+					leaf.detach();
+					return Promise.resolve();
+				}
 			}
 
-			return originalOpenFile(file, openState);
+			if (this.settings.focusNewTab) {
+				return originalOpenFile(file, {
+					...openState,
+					active: true,
+				}).then(() => {
+					this.app.workspace.setActiveLeaf(leaf, {
+						focus: true,
+					});
+				});
+			}
+
+			// Background: open without stealing focus, then
+			// restore focus to the previously active leaf.
+			return originalOpenFile(file, {
+				...openState,
+				active: false,
+			}).then(() => {
+				if (sourceLeaf) {
+					this.app.workspace.setActiveLeaf(
+						sourceLeaf,
+						{ focus: true }
+					);
+				}
+			});
 		};
 	}
 
@@ -618,6 +655,22 @@ class OpenInNewTabSettingTab extends PluginSettingTab {
 					)
 					.onChange((value) => {
 						this.plugin.settings.focusExistingTab =
+							value;
+						void this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Focus new tab")
+			.setDesc(
+				"When enabled, opening a file in a new tab focuses that tab. " +
+					"When disabled, the new tab opens in the background and focus stays on the current tab."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.focusNewTab)
+					.onChange((value) => {
+						this.plugin.settings.focusNewTab =
 							value;
 						void this.plugin.saveSettings();
 					})
